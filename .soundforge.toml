@@ -1,0 +1,43 @@
+# SoundForge project configuration
+
+[defaults]
+engine = "godot"          # godot | unity | unreal
+asset_type = "sfx"        # sfx | ui | ambience | loop
+duration = 2.0            # seconds (0.5-47)
+variations = 4            # default batch count
+
+[backend]
+default = "stable-audio"  # stable-audio (local GPU) | elevenlabs (API)
+
+[backend.stable-audio]
+# num_inference_steps = 100       # override prompt_influence mapping
+# negative_prompt = "low quality, distorted, noise"
+# guidance_scale = 7.0
+# model_path = "/path/to/local/model"  # use local checkout instead of HuggingFace
+
+[postprocess]
+trim_silence = true
+fade_in = 0.01            # seconds
+fade_out = 0.05           # seconds
+normalize = true
+target_peak_dbfs = -1.0
+# sample_rate = 44100     # uncomment to override engine default
+# channels = 1            # 1 = mono, 2 = stereo
+
+[engine.godot]
+format = "wav"
+sample_rate = 44100
+channels = 1
+output_dir = "audio/sfx"
+
+[engine.unity]
+format = "wav"
+sample_rate = 44100
+channels = 1
+output_dir = "Assets/Audio/SFX"
+
+[engine.unreal]
+format = "wav"
+sample_rate = 48000
+channels = 1
+output_dir = "Content/Audio/SFX"
