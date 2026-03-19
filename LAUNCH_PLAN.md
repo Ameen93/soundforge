@@ -1,23 +1,23 @@
 # SoundForge Launch Plan
 > Portfolio + GitHub readiness checklist
 
-## Status: 🟡 In Progress
+## Status: ✅ Complete
 
 ### GitHub Setup
-- [ ] Create public GitHub repo
-- [ ] Add MIT LICENSE file
-- [ ] Clean up .gitignore
-- [ ] Add GitHub topics/tags
-- [ ] Pin repo on GitHub profile
-- [ ] Add GitHub Actions CI (pytest on push)
+- [x] Create public GitHub repo — https://github.com/Ameen93/soundforge
+- [x] Add MIT LICENSE file
+- [x] Clean up .gitignore (.soundforge.toml, uv.lock excluded)
+- [x] Add GitHub topics/tags (ai, audio, game-dev, sound-effects, python, cli, godot, unity, unreal, gamedev, sfx, elevenlabs)
+- [ ] Pin repo on GitHub profile (requires Ameen)
+- [x] Add GitHub Actions CI (pytest on Python 3.11/3.12/3.13)
 
 ### Portfolio Site
-- [ ] Add SoundForge entry to portfolio site
+- [x] Add SoundForge entry to portfolio site
 
 ### Housekeeping
-- [ ] Update operator card (discord_channel, discord_channel_id)
-- [ ] Create project-memory file
-- [ ] Update TOOLS.md / MEMORY.md
+- [x] Update operator card (discord_channel, discord_channel_id)
+- [x] Create project-memory file
+- [x] Update TOOLS.md
 
 ---
-*Updated by Nick Fury — tracking progress as items complete.*
+*Completed 2026-03-19 by Nick Fury*
