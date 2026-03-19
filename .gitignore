@@ -10,3 +10,5 @@ build/
 *.wav
 test_output/
 audio/
+.soundforge.toml
+uv.lock
