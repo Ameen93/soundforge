@@ -1,8 +1,8 @@
 ---
 project: soundforge
 type: decisions
-status: planning
-last_updated: 2026-03-17
+status: current
+last_updated: 2026-03-29
 tags: soundforge, decisions, architecture, scope
 ---
 
@@ -10,96 +10,102 @@ tags: soundforge, decisions, architecture, scope
 
 ## Product Decisions
 
-### Focus v0 on SFX and ambience
+### Focus on short-form game audio
+
 Decision:
-SoundForge v0 should target short-form game audio, especially sound effects and ambience loops.
+SoundForge targets SFX, UI sounds, ambience, and loop-intended clips rather than music.
 
 Why:
-- clearer user need
-- stronger current model fit
-- lower evaluation complexity
-- easier packaging story than music
+- clearer product wedge
+- better fit for current models
+- easier evaluation and packaging
+- stronger CLI workflow story
 
-### Treat variations as a core feature
+### Treat workflow as the differentiator
+
 Decision:
-Batch generation should be a first-class feature, not an extra.
+SoundForge is positioned as a game-audio pipeline, not just a text-to-audio wrapper.
 
 Why:
-- games need variation to avoid repetition fatigue
-- one hero sound is less useful than a small set
-- this aligns with competitor messaging and real game workflows
+- cleanup and export matter more than raw generation alone
+- deterministic manifests help developers and agents
+- engine-aware defaults are real product value
 
-### Position as workflow, not pure generation
+### Treat batch generation as a first-class feature
+
 Decision:
-SoundForge should be framed as a game-audio asset pipeline.
+Variation packs are core, not optional polish.
 
 Why:
-- model quality is not enough to differentiate
-- cleanup, naming, manifests, and engine export are where workflow value accumulates
+- games need repeated small variations
+- one perfect hero sound is less useful than a usable set
 
 ## Architecture Decisions
 
-### Core library + thin CLI
+### Keep the CLI thin
+
 Decision:
-Keep the CLI thin and move business logic into a reusable core.
+The CLI owns parsing and presentation. The core owns workflow logic.
 
 Why:
-- mirrors the strongest design choice in `pixelforge`
-- enables future API and web reuse
 - improves testability
+- preserves reusability
+- reduces command-layer drift
 
-### Backend abstraction from day one
+### Keep backend abstraction stable
+
 Decision:
-Design around interchangeable backends immediately.
+Backends must share a common interface and return arrays plus sample rate.
 
 Why:
-- providers will change
-- local support remains strategically valuable
-- prevents lock-in to a single vendor payload shape
+- avoids provider lock-in
+- keeps postprocessing and export backend-agnostic
 
-### WAV-first canonical pipeline
+### Use WAV as the canonical export and processing format
+
 Decision:
-Use WAV as the internal and default export format.
+WAV remains the default working format even when source backends return encoded audio.
 
 Why:
-- safest for processing
-- broadest import support
-- simplest first implementation
+- broad engine compatibility
+- simple and reliable processing
+- lower quality-risk in the pipeline
 
-## Workflow Decisions
+### Keep JSON mode mandatory
 
-### JSON mode is mandatory
 Decision:
-All relevant commands should support structured JSON output.
+Relevant commands must support machine-readable JSON output.
 
 Why:
 - agent compatibility
-- CI automation
-- editor and tooling integrations
+- CI and scripting support
+- future API/editor integration
 
-### Project-level config discovery
+### Discover project config by walking upward
+
 Decision:
-Use `.soundforge.toml` discovered by walking up from the current directory.
+Use `.soundforge.toml` discovery from the working directory, with a global fallback.
 
 Why:
-- matches how game projects are organized
-- aligns with the proven `pixelforge` model
-- supports team conventions and shared defaults
+- fits game project layout
+- allows team defaults
+- works well for terminal and agent workflows
 
-### Engine presets early
-Decision:
-Include Godot, Unity, and Unreal presets in v0.
+## Decisions That Are Now Resolved
 
-Why:
-- they are practical target engines
-- export defaults are meaningful product value
-- they reduce friction in real adoption
+### First hosted backend
 
-## Deferred Decisions
+Resolved:
+ElevenLabs is implemented as the hosted backend.
 
-These remain open for later implementation:
-- exact first hosted backend
-- exact local backend candidate
-- whether LUFS normalization belongs in v0 or v0.5
-- whether Ogg export belongs in v0 or v0.5
-- whether retro/procedural synthesis joins v1 or v1.5
+### First local backend
+
+Resolved:
+Stable Audio Open 1.0 is implemented as the local GPU backend.
+
+## Open Decisions
+
+- whether to add OGG export next or later
+- whether LUFS belongs in the next milestone
+- whether to introduce structured request types now or wait for API reuse pressure
+- whether retro procedural synthesis should become a backend in v1 or later

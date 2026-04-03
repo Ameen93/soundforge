@@ -198,3 +198,43 @@ class TestGenerate:
         assert "loop_smooth" in pp
         assert "sample_rate_conversion" in pp
         assert "channel_conversion" in pp
+
+    @patch("soundforge.core.generate.get_backend")
+    def test_duration_preflight_clamps_before_backend_call(
+        self, mock_get_backend, tmp_path
+    ):
+        backend = _fake_backend()
+        mock_get_backend.return_value = backend
+
+        warnings = []
+        generate(
+            "test",
+            duration=45.0,
+            output_dir=tmp_path,
+            config=SoundForgeConfig(elevenlabs_api_key="test"),
+            on_status=warnings.append,
+        )
+
+        call_kwargs = backend.generate.call_args
+        assert call_kwargs.kwargs["duration_seconds"] == 30.0
+        assert any("clamping to 30" in warning for warning in warnings)
+
+    @patch("soundforge.core.generate.get_backend")
+    def test_loop_preflight_fails_before_backend_call(self, mock_get_backend, tmp_path):
+        backend = _fake_backend()
+        backend.capabilities.return_value = {
+            "max_duration": 30,
+            "supports_loop": False,
+            "supports_seed": False,
+        }
+        mock_get_backend.return_value = backend
+
+        with pytest.raises(RuntimeError, match="does not support loop generation"):
+            generate(
+                "test",
+                loop=True,
+                output_dir=tmp_path,
+                config=SoundForgeConfig(elevenlabs_api_key="test"),
+            )
+
+        backend.generate.assert_not_called()

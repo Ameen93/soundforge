@@ -10,6 +10,7 @@ from soundforge.core.config import SoundForgeConfig
 from soundforge.core.export import export_single
 from soundforge.core.postprocess import run_pipeline
 from soundforge.core.types import GenerateResult
+from soundforge.core.validation import validate_generation_request
 
 
 def generate(
@@ -42,7 +43,9 @@ def generate(
     # Get backend and generate
     backend = get_backend(cfg.backend, cfg)
 
-    if seed is not None and not backend.capabilities().get("supports_seed", False):
+    capabilities = backend.capabilities()
+
+    if seed is not None and not capabilities.get("supports_seed", False):
         if on_status:
             on_status(
                 f"Warning: backend '{cfg.backend}' does not support seeds — "
@@ -51,15 +54,25 @@ def generate(
 
     # Determine loop behavior: explicit --loop flag OR loop/ambience asset type
     is_loop = loop or use_asset_type in ("ambience", "loop")
-
-    samples, sample_rate = backend.generate(
-        text=prompt,
-        duration_seconds=use_duration,
+    use_duration = validate_generation_request(
+        backend_name=cfg.backend,
+        capabilities=capabilities,
+        duration=use_duration,
         loop=is_loop,
-        prompt_influence=prompt_influence,
-        seed=seed,
         on_status=on_status,
     )
+
+    try:
+        samples, sample_rate = backend.generate(
+            text=prompt,
+            duration_seconds=use_duration,
+            loop=is_loop,
+            prompt_influence=prompt_influence,
+            seed=seed,
+            on_status=on_status,
+        )
+    finally:
+        backend.cleanup()
 
     # Capture pre-processing state for manifest tracking
     orig_sample_rate = sample_rate

@@ -1,289 +1,302 @@
 ---
 project: soundforge
 type: implementation-plan
-status: planning
-last_updated: 2026-03-17
-tags: soundforge, implementation, v0, cli, audio, backend
+status: current
+last_updated: 2026-03-29
+tags: soundforge, implementation, roadmap, audio, backend
 ---
 
 # Implementation Plan
 
-## Overview
-SoundForge v0 should be built as a focused, usable CLI for game sound effect and ambience generation. The implementation should follow a narrow product thesis:
+This plan translates the roadmap into concrete execution phases. It is biased toward shipping the highest-leverage workflow improvements first.
 
-**Ship a clean prompt-to-pack workflow for short game audio first.**
+## Planning Assumptions
 
-This avoids the trap of trying to solve the entire game audio stack in the first release.
+- keep the CLI thin
+- keep `soundforge/core/` reusable
+- preserve deterministic outputs and JSON mode
+- keep WAV as the canonical processing format
+- add broader workflow surfaces only after current SFX workflows are stronger
 
-## Phase 0: Foundation Decisions
+## Phase 1: v0.5 Production Fit
 
-### Decision 1
-Start with `SFX + ambience loops`, not full music.
+Goal:
 
-Reason:
-- lower model complexity
-- clearer user value
-- easier evaluation
-- closer alignment with the strongest current market tools
+Make current SFX and ambience workflows production-usable for real game projects.
 
-### Decision 2
-Build hosted backend support first, but keep the backend abstraction neutral.
+### Workstream 1: Export and analysis
 
-Reason:
-- fastest path to usable output
-- lowest local setup burden
-- easier initial testing
-- preserves room for self-hosted or local generation later
-
-### Decision 3
-Use WAV as the canonical working format.
-
-Reason:
-- easy postprocessing
-- broad engine compatibility
-- no avoidable quality loss during cleanup
-
-## Proposed Milestones
-
-### Milestone 1: Core Scaffolding
 Deliver:
-- package skeleton
-- CLI entrypoint
-- config loader
-- JSON / human output formatting
-- basic type definitions
+- OGG export support
+- LUFS measurement
+- optional LUFS normalization
+- richer inspect output
+
+Implementation notes:
+- extend `core/export.py` to support multi-format export
+- keep postprocess in WAV-space, convert at export boundary
+- extend `core/analysis.py` and `core/types.py` with loudness metadata
+- add CLI flags only after manifest schema is defined
+
+Dependencies:
+- decide manifest schema for format variants
+- choose optional dependency strategy for loudness measurement
 
 Acceptance criteria:
-- `soundforge info` runs
-- `.soundforge.toml` can be discovered
-- stdout/stderr separation is in place
+- generated and processed assets can export as WAV and OGG
+- inspect output includes loudness-oriented metadata
+- manifests reflect format and loudness information
 
-### Milestone 2: Hosted Generation Path
+### Workstream 2: Loop quality
+
 Deliver:
-- backend interface
-- first hosted backend
-- single `generate` command
-- file saving and manifest writing
+- loop-point analysis
+- seam quality score
+- loop repair strategy options
+
+Implementation notes:
+- keep `loop_smooth()` as the basic repair path
+- add analysis helpers before adding complex CLI UX
+- record loop scores and repair decisions in manifests
 
 Acceptance criteria:
-- one prompt produces one WAV file and JSON metadata
-- backend capability checks are exposed through `info`
+- ambience workflows provide a useful signal for loopability
+- users can tell whether a loop is safe without manual DAW inspection
 
-### Milestone 3: Batch Workflow
+### Workstream 3: Metadata and regeneration
+
 Deliver:
-- `batch` command
-- deterministic naming
-- pack directory creation
-- manifest for grouped outputs
+- asset tags
+- hierarchical taxonomy
+- selective regeneration
+- replace-one-variant workflow
+
+Implementation notes:
+- add tags to manifest schema first
+- then add CLI affordances for reading and rewriting packs
+- avoid coupling taxonomy directly to backend prompt shape
 
 Acceptance criteria:
-- one prompt can produce N numbered files
-- outputs can be dropped into a game project without manual renaming
+- a user can regenerate a single asset inside a pack without manual rename or manifest repair
 
-### Milestone 4: Postprocessing
+### Workstream 4: Core reliability and ergonomics
+
 Deliver:
-- silence trimming
-- fade handling
-- normalization
-- sample-rate conversion
-- mono/stereo conversion
+- backend capability preflight validation
+- better progress reporting
+- optional `process` manifest generation
 
 Acceptance criteria:
-- raw backend output can be transformed into cleaner game-ready audio
-- processing works on both generated files and existing files
+- invalid generation requests fail early and consistently
+- long-running commands provide useful progress
 
-### Milestone 5: Preview & Inspect
+## Phase 2: v1 Library And Semantic Workflow
+
+Goal:
+
+Turn generated output into a reusable, queryable local audio system.
+
+### Workstream 1: Local library
+
 Deliver:
-- `preview`
-- `inspect`
-- directory-level inspection support
+- library index
+- search by prompt, tags, type, engine, duration, backend
+- lineage tracking
+
+Implementation notes:
+- introduce a local metadata store
+- keep manifests as source artifacts, not the sole query mechanism
+- add import support for externally created assets
 
 Acceptance criteria:
-- users can quickly validate results without leaving the CLI workflow
+- users can find past generated assets without browsing folders manually
 
-### Milestone 6: Engine Presets
+### Workstream 2: Review state
+
 Deliver:
-- Godot preset
-- Unity preset
-- Unreal preset
-- export rule resolution
+- accepted, rejected, favorite, shortlisted states
+- notes and curation metadata
+- compare and audition workflows
 
 Acceptance criteria:
-- `--engine` materially changes export defaults and output organization
+- users can review packs and preserve decisions machine-readably
 
-## Suggested Command Surface
+### Workstream 3: Semantic pack generators
 
-### v0 Commands
-```bash
-soundforge generate PROMPT
-soundforge batch PROMPT
-soundforge process PATH
-soundforge preview PATH
-soundforge inspect PATH
-soundforge pack PATH
-soundforge info
-soundforge setup
-```
+Deliver first:
+- footsteps by surface
+- UI sets
+- weapon family packs
 
-### Example CLI Usage
-```bash
-soundforge generate "stone door grinding open, ancient, heavy" \
-  --type sfx \
-  --duration 2.5 \
-  --engine godot \
-  --output assets/audio/doors
+Implementation notes:
+- these should be higher-level workflows built on top of current generation primitives
+- prompts should be templated, not fully opaque
 
-soundforge batch "arcade coin pickup, bright and short" \
-  --count 8 \
-  --prefix sfx_coin \
-  --engine unity \
-  --output assets/audio/ui
+Acceptance criteria:
+- one command can create a coherent multi-asset family with useful naming and metadata
 
-soundforge generate "wind through a ruined canyon" \
-  --type ambience \
-  --duration 8 \
-  --loop \
-  --output assets/audio/ambience
-```
+## Phase 3: v1.5 Middleware And Engine Automation
 
-## Recommended Internal Modules
+Goal:
 
-### `core/config.py`
-Responsibilities:
-- load `.soundforge.toml`
-- resolve defaults
-- apply engine preset rules
+Make SoundForge integration-aware.
 
-### `core/types.py`
-Responsibilities:
-- request/result dataclasses
-- backend and asset enums
-- manifest structures
+### Workstream 1: Wwise
 
-### `core/generate.py`
-Responsibilities:
-- build normalized generation requests
-- shape prompts if needed
-- call backends
+Deliver:
+- WAAPI connection layer
+- import existing generated assets into Wwise
+- create Sound SFX objects
+- create Random Containers from variation packs
+- create Switch Containers from tagged families
+- build SoundBanks
 
-### `core/postprocess.py`
-Responsibilities:
-- trim
-- normalize
-- fades
-- channel conversion
-- resampling
-- loop-safe cleanup
+Implementation notes:
+- create a separate integration module rather than bloating `core/export.py`
+- model Wwise object mapping from manifest metadata
+- start with import and container creation before deeper property automation
 
-### `core/analysis.py`
-Responsibilities:
-- duration
-- sample rate
-- channel count
-- peak amplitude
-- optional loudness
-- silence estimates
+Dependencies:
+- tags and taxonomy from earlier phases
+- stable manifest schema
 
-### `core/export.py`
-Responsibilities:
-- write files
-- convert formats
-- write manifests
-- enforce naming and folder structure
+Acceptance criteria:
+- a generated pack can be turned into a usable Wwise object structure with one workflow
 
-### `core/pack.py`
-Responsibilities:
-- assemble sets
-- summarize pack metadata
-- optional archive export later
+### Workstream 2: FMOD
 
-### `core/preview.py`
-Responsibilities:
-- playback helpers
-- variation set browsing
+Deliver:
+- FMOD-oriented export manifests
+- event templates
+- loop and one-shot event mapping
+- parameter-oriented pack metadata
 
-## Manifest Design
-Every batch or pack should generate a manifest.
+Implementation notes:
+- start with file and manifest structure
+- add event scaffold generation before attempting more dynamic authoring
 
-Suggested schema:
+Acceptance criteria:
+- generated packs map naturally into FMOD authoring workflows with minimal manual setup
 
-```json
-{
-  "name": "coin_pickups",
-  "asset_type": "ui",
-  "engine": "unity",
-  "backend": "api",
-  "prompt": "arcade coin pickup, bright and short",
-  "generated_at": "2026-03-17T19:00:00Z",
-  "files": [
-    {
-      "path": "sfx_coin_01.wav",
-      "duration_seconds": 0.42,
-      "sample_rate": 44100,
-      "channels": 1,
-      "peak_dbfs": -1.0
-    }
-  ]
-}
-```
+### Workstream 3: Engine import hints
 
-## Dependency Recommendations
-The exact set can be finalized during implementation, but the likely stack is:
-- `click` for CLI
-- `numpy` for signal operations
-- `soundfile` for file IO
-- `scipy` for resampling utilities if needed
-- `pydantic` only if manifest/config validation needs stronger schemas later
-- backend-specific SDKs only as optional extras
+Deliver:
+- manifest-level import recommendations for Godot, Unity, Unreal
+- optional helper commands or plugin-facing outputs
 
-Avoid making the initial package too heavy if the first backend is hosted.
+Acceptance criteria:
+- exported metadata is strong enough to drive import tooling later
 
-## Testing Strategy
+## Phase 4: v2 Voice And Dialogue
 
-### v0 Test Layers
-1. Unit tests for config, naming, manifest, and postprocessing helpers
-2. Smoke tests for CLI command execution
-3. Fixture-based tests for `process` and `inspect`
-4. Mocked backend tests for generation workflows
+Goal:
 
-### What Not To Depend On For CI
-- real API calls by default
-- subjective human listening tests as the only quality gate
-- fragile waveform snapshots that break on small backend changes
+Cover placeholder and iterative VO workflows.
 
-## Biggest Risks
+### Deliver
 
-### Risk 1: Backend quality variance
-Mitigation:
-- keep backend abstraction clean
-- preserve prompt shaping in core
-- emphasize batch workflows and selection over single perfect outputs
+- bark and callout generation
+- character voice profiles
+- line-variation generation
+- transcript and subtitle metadata
+- programmer-sound friendly export structures
 
-### Risk 2: Cleanup pipeline is too weak
-Mitigation:
-- make postprocessing a first-class implementation milestone
-- treat `process` as a standalone useful command
+### Dependencies
 
-### Risk 3: Scope drift into music and voice
-Mitigation:
-- explicit non-goals in docs and milestones
-- separate roadmap section for deferred capabilities
+- stronger library and metadata model
+- likely new backend abstractions or capability flags
 
-### Risk 4: Local backend complexity
-Mitigation:
-- do not make local inference a blocker for v0
-- keep it architecturally possible, not mandatory
+### Acceptance criteria
 
-## Recommended First Build Order
-The practical build sequence should be:
+- dialogue assets fit the same pack, manifest, and integration patterns as current SFX workflows
 
-1. CLI shell and config
-2. types and manifest schema
-3. hosted backend adapter
-4. single generate command
-5. batch command
-6. postprocess command and library
-7. inspect/preview
-8. engine presets
+## Phase 5: v2.5 Music And Adaptive Audio
 
-That order gets the shortest path to a usable product while keeping the architecture clean.
+Goal:
+
+Expand into practical music support without collapsing into DAW features.
+
+### Deliver
+
+- stingers
+- menu and combat loops
+- intensity-layer variants
+- transition cue workflows
+- stem-aware metadata if supported
+
+### Acceptance criteria
+
+- short-form music workflows are scriptable and organized, not just generated ad hoc
+
+## Cross-Cutting Technical Work
+
+These should happen throughout the roadmap.
+
+### Manifest evolution
+
+- version the schema once it expands meaningfully
+- document changes in `README.md`
+- keep backward-compatible readers where possible
+
+### Testing
+
+- add fixture-driven audio tests for new analysis features
+- keep backend behavior mocked in CI
+- add integration-test layers for middleware if practical
+
+### Optional dependencies
+
+- keep heavyweight or niche capabilities behind extras
+- maintain a clean base install for CLI-only workflows
+
+### Developer UX
+
+- preserve `--output-json`
+- preserve deterministic outputs
+- preserve noninteractive automation paths
+
+## Suggested Execution Order
+
+The most pragmatic order from here is:
+
+1. backend capability validation
+2. OGG export
+3. LUFS analysis
+4. loop analysis and repair
+5. tags and taxonomy
+6. regeneration workflows
+7. local asset library
+8. semantic pack generators
+9. Wwise integration
+10. FMOD integration
+
+## Recommended Immediate Epics
+
+If starting implementation now, the next three epics should be:
+
+### Epic 1: Export and analysis upgrade
+
+Scope:
+- OGG export
+- loudness metrics
+- richer inspect
+
+### Epic 2: Loop and pack intelligence
+
+Scope:
+- loop scoring
+- tags
+- replace/regenerate workflows
+
+### Epic 3: Asset library foundation
+
+Scope:
+- local index
+- searchable metadata
+- review states
+
+## Execution Docs
+
+Detailed execution breakdown for the next phase:
+
+- `docs/V0_5_EXECUTION_PLAN.md`

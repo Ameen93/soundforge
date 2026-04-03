@@ -10,6 +10,7 @@ from soundforge.core.config import SoundForgeConfig
 from soundforge.core.export import export_batch, sanitize_name
 from soundforge.core.postprocess import run_pipeline
 from soundforge.core.types import BatchResult, GenerateResult
+from soundforge.core.validation import validate_generation_request
 
 
 def batch_generate(
@@ -41,47 +42,58 @@ def batch_generate(
     target_ch = cfg.resolve_channels()
 
     backend = get_backend(cfg.backend, cfg)
+    capabilities = backend.capabilities()
     # Determine loop behavior: explicit --loop flag OR loop/ambience asset type
     is_loop = loop or use_asset_type in ("ambience", "loop")
+    use_duration = validate_generation_request(
+        backend_name=cfg.backend,
+        capabilities=capabilities,
+        duration=use_duration,
+        loop=is_loop,
+        on_status=on_status,
+    )
 
     processed_results: list[tuple] = []
     orig_sample_rate = None
     orig_channels = None
 
-    for i in range(1, count + 1):
-        if on_status:
-            on_status(f"Generating variation {i}/{count}...")
+    try:
+        for i in range(1, count + 1):
+            if on_status:
+                on_status(f"Generating variation {i}/{count}...")
 
-        samples, sample_rate = backend.generate(
-            text=prompt,
-            duration_seconds=use_duration,
-            loop=is_loop,
-            prompt_influence=prompt_influence,
-            seed=None,
-            on_status=None,  # suppress per-generation status in batch
-        )
+            samples, sample_rate = backend.generate(
+                text=prompt,
+                duration_seconds=use_duration,
+                loop=is_loop,
+                prompt_influence=prompt_influence,
+                seed=None,
+                on_status=None,  # suppress per-generation status in batch
+            )
 
-        # Capture pre-processing state from first variation
-        if orig_sample_rate is None:
-            orig_sample_rate = sample_rate
-            orig_channels = samples.shape[1] if samples.ndim == 2 else 1
+            # Capture pre-processing state from first variation
+            if orig_sample_rate is None:
+                orig_sample_rate = sample_rate
+                orig_channels = samples.shape[1] if samples.ndim == 2 else 1
 
-        # Postprocess each variation
-        samples, sample_rate = run_pipeline(
-            samples,
-            sample_rate,
-            trim=cfg.trim_silence,
-            fade_in_sec=cfg.fade_in,
-            fade_out_sec=cfg.fade_out,
-            normalize=cfg.normalize,
-            target_peak_dbfs=cfg.target_peak_dbfs,
-            target_sample_rate=target_sr,
-            target_channels=target_ch,
-            loop=is_loop,
-            on_status=None,
-        )
+            # Postprocess each variation
+            samples, sample_rate = run_pipeline(
+                samples,
+                sample_rate,
+                trim=cfg.trim_silence,
+                fade_in_sec=cfg.fade_in,
+                fade_out_sec=cfg.fade_out,
+                normalize=cfg.normalize,
+                target_peak_dbfs=cfg.target_peak_dbfs,
+                target_sample_rate=target_sr,
+                target_channels=target_ch,
+                loop=is_loop,
+                on_status=None,
+            )
 
-        processed_results.append((samples, sample_rate))
+            processed_results.append((samples, sample_rate))
+    finally:
+        backend.cleanup()
 
     if on_status:
         on_status(f"Exporting {count} files...")

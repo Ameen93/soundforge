@@ -1,83 +1,127 @@
 # SoundForge
 
-AI-powered game audio asset generator. Generate, process, and package game sound effects from text prompts — locally on your GPU or via cloud API — with engine-aware export for Godot, Unity, and Unreal.
+AI-powered game audio asset generator for developers. SoundForge is a Python CLI plus reusable core library for generating, postprocessing, inspecting, previewing, and packaging short-form game audio.
+
+It is optimized for:
+- one-shot SFX
+- UI sounds
+- short ambience clips
+- loop-intended assets
+- deterministic exports for Godot, Unity, and Unreal
+
+The product thesis is workflow, not just generation: prompt a sound, clean it up, export it with sane defaults, and hand an engine-ready manifest to a developer or agent.
+
+## Status
+
+Current state:
+- v0 CLI is implemented and tested
+- 2 generation backends: `stable-audio` and `elevenlabs`
+- postprocessing pipeline: trim, fades, normalize, channel convert, resample, loop smoothing
+- engine presets: Godot, Unity, Unreal
+- manifest and pack export
+- 181 tests passing
 
 ## Installation
 
 ```bash
-# With uv (recommended)
+# Base install
 uv sync
 
-# Local GPU generation (requires NVIDIA GPU with CUDA)
+# Local GPU generation support
 uv pip install -e ".[local-gpu]"
 
-# With pip
-pip install -e .
-pip install -e ".[local-gpu]"    # for GPU generation
+# Optional preview + resampling extras
+uv pip install -e ".[preview,resample]"
+```
 
-# Optional: audio preview + resampling
+With `pip`:
+
+```bash
+pip install -e .
+pip install -e ".[local-gpu]"
 pip install -e ".[preview,resample]"
 ```
 
 ## Quick Start
 
 ```bash
-# 1. Set up backend (checks GPU, HuggingFace auth, model access)
+# 1. Check backend readiness
+uv run soundforge info
+
+# 2. Configure a backend if needed
 uv run soundforge setup
 
-# 2. Generate a sound effect
-uv run soundforge generate "coin pickup" --engine godot -o assets/audio/
+# 3. Generate a single asset
+uv run soundforge generate "coin pickup" --engine godot -o assets/audio
 
-# 3. Generate variations
+# 4. Generate a batch of variations
 uv run soundforge batch "sword clash" --count 4 --prefix sfx_sword
 
-# 4. Check system status
-uv run soundforge info
+# 5. Inspect or preview output
+uv run soundforge inspect assets/audio/
+uv run soundforge preview assets/audio/sfx_coin_pickup.wav
 ```
 
 ## Backends
 
-| Backend | Type | Output | Cost | Setup |
-|---------|------|--------|------|-------|
-| **stable-audio** (default) | Local GPU | 44.1 kHz stereo | Free | CUDA GPU + HuggingFace account |
-| **elevenlabs** | Cloud API | 44.1 kHz | Paid | API key |
+| Backend | Mode | Notes |
+|--------|------|-------|
+| `stable-audio` | Local GPU | Stable Audio Open 1.0 via diffusers. Supports seed. Requires CUDA GPU and model access. |
+| `elevenlabs` | Cloud API | ElevenLabs sound generation API. Requires API key. Supports loop flag. |
 
-Switch backends with `--backend` or set `default` in `.soundforge.toml`:
+Switch at runtime:
 
 ```bash
 uv run soundforge generate "coin pickup" --backend stable-audio
 uv run soundforge generate "coin pickup" --backend elevenlabs
 ```
 
-### Stable Audio Open (local)
+### Stable Audio Open
 
-Uses [Stable Audio Open 1.0](https://huggingface.co/stabilityai/stable-audio-open-1.0) via diffusers. Requires:
-- NVIDIA GPU with 12GB+ VRAM
+Requirements:
+- NVIDIA GPU with CUDA
 - `uv pip install -e ".[local-gpu]"`
-- HuggingFace account with model license accepted
-- Run `uv run soundforge setup` to configure
+- HuggingFace account and accepted model license
 
-The model (~4GB) downloads on first generation and is cached locally. Generation takes ~6-12s per sound effect.
+Useful command:
 
-### ElevenLabs (cloud)
+```bash
+uv run soundforge setup --backend stable-audio
+```
 
-Uses the [ElevenLabs Sound Effects API](https://elevenlabs.io). Requires an API key — run `uv run soundforge setup --backend elevenlabs` to configure.
+### ElevenLabs
+
+Requirements:
+- ElevenLabs API key
+
+Useful command:
+
+```bash
+uv run soundforge setup --backend elevenlabs
+```
+
+Or set:
+
+```bash
+export ELEVENLABS_API_KEY=...
+```
 
 ## Commands
 
-### generate
+### `generate`
 
-Generate a single sound effect from a text prompt.
+Generate one audio asset from a text prompt.
 
 ```bash
 soundforge generate "coin pickup" --engine godot
 soundforge generate "sword clash" --duration 2.5 -o assets/sfx
 soundforge generate "cave ambience" --type ambience --loop
+soundforge generate "magic chime" --seed 42
 ```
 
-### batch
+### `batch`
 
-Generate multiple variations of a sound effect.
+Generate multiple variations.
 
 ```bash
 soundforge batch "sword hit" --count 8 --prefix sfx_sword
@@ -85,9 +129,9 @@ soundforge batch "footstep" -n 4 --engine unity -o assets/audio
 soundforge batch "rain loop" --type ambience --loop
 ```
 
-### process
+### `process`
 
-Postprocess existing audio files (trim, fade, normalize, resample).
+Postprocess existing WAV files. By default, writes to a `processed/` subdirectory instead of overwriting the source.
 
 ```bash
 soundforge process raw/*.wav --normalize -1
@@ -95,56 +139,61 @@ soundforge process audio.wav --sample-rate 44100 --channels 1
 soundforge process track.wav --loop-smooth -o processed/
 ```
 
-### inspect
+### `inspect`
 
-Show audio file metadata.
+Inspect one WAV file or all WAVs in a directory.
 
 ```bash
 soundforge inspect assets/audio/sfx_coin.wav
-soundforge inspect assets/audio/           # all WAVs in directory
+soundforge inspect assets/audio/
+soundforge inspect assets/audio/ --output-json
 ```
 
-### preview
+### `preview`
 
-Play an audio file through the default audio device.
+Play a file through the default audio device.
 
 ```bash
 soundforge preview assets/audio/sfx_coin_01.wav
 ```
 
-### pack
+Requires the optional preview dependency.
 
-Build a manifest (and optional zip) from a directory of audio files.
+### `pack`
+
+Build a manifest from a directory of WAV files and optionally zip the pack.
 
 ```bash
 soundforge pack assets/coins/ --name coin_pickups
 soundforge pack audio/sfx/ --name ui_pack --type ui --zip
 ```
 
-### info
+### `info`
 
-Show system info, config, and backend readiness.
+Show config, backend readiness, and capabilities.
 
 ```bash
 soundforge info
 soundforge info --output-json
 ```
 
-### setup
+### `setup`
 
-Configure SoundForge backend (GPU check, HuggingFace auth, or API key).
+Configure either backend.
 
 ```bash
-soundforge setup                          # interactive
-soundforge setup --backend stable-audio   # local GPU setup
-soundforge setup --backend elevenlabs     # cloud API setup
+soundforge setup
+soundforge setup --backend stable-audio
+soundforge setup --backend elevenlabs
 ```
 
-All commands support `--output-json` for structured output and `--quiet` for agent/CI use.
+All commands support `--output-json` for machine-readable output and `--quiet` for agent or CI use.
 
 ## Configuration
 
-Create a `.soundforge.toml` in your project root (or copy from `.soundforge.toml.example`):
+SoundForge discovers `.soundforge.toml` by walking up from the current directory. If none is found, it falls back to `~/.config/soundforge/config.toml`.
+
+Example:
 
 ```toml
 [defaults]
@@ -154,14 +203,14 @@ duration = 2.0
 variations = 4
 
 [backend]
-default = "stable-audio"   # stable-audio | elevenlabs
-elevenlabs_api_key = ""    # for elevenlabs backend
+default = "stable-audio"
+elevenlabs_api_key = ""
 
 [backend.stable-audio]
-# num_inference_steps = 100       # override prompt_influence mapping
+# num_inference_steps = 100
 # negative_prompt = "low quality, distorted, noise"
 # guidance_scale = 7.0
-# model_path = "/path/to/local/model"
+# model_path = "stabilityai/stable-audio-open-1.0"
 
 [postprocess]
 trim_silence = true
@@ -170,37 +219,53 @@ fade_out = 0.05
 normalize = true
 target_peak_dbfs = -1.0
 
-# Override engine presets
 [engine.godot]
 sample_rate = 44100
 channels = 1
+output_dir = "audio/sfx"
 ```
 
-Config is discovered by walking up directories from cwd, falling back to `~/.config/soundforge/config.toml`.
+Environment variables:
+- `ELEVENLABS_API_KEY`
 
 ## Engine Presets
 
-| Engine | Sample Rate | Channels | Output Dir |
-|--------|-------------|----------|------------|
-| Godot  | 44100 Hz    | Mono     | `audio/sfx` |
-| Unity  | 44100 Hz    | Mono     | `Assets/Audio/SFX` |
-| Unreal | 48000 Hz    | Mono     | `Content/Audio/SFX` |
+| Engine | Sample Rate | Channels | Default Output Dir |
+|--------|-------------|----------|--------------------|
+| Godot | 44100 Hz | Mono | `audio/sfx` |
+| Unity | 44100 Hz | Mono | `Assets/Audio/SFX` |
+| Unreal | 48000 Hz | Mono | `Content/Audio/SFX` |
 
-Presets can be overridden in `.soundforge.toml` with `[engine.<name>]` sections.
+These presets can be overridden in config with `[engine.<name>]`.
 
 ## Architecture
 
-```
-soundforge/core/     — Pure library. Returns dataclasses, no IO or CLI deps.
-soundforge/cli/      — Thin Click wrapper. Formats core results for humans or JSON.
+```text
+soundforge/cli/   Thin Click wrapper
+soundforge/core/  Reusable application logic
+tests/            End-to-end and module tests
+docs/             Product, architecture, and maintenance notes
 ```
 
-Pipeline: text prompt → backend (Stable Audio Open / ElevenLabs) → postprocess (trim, fade, normalize, resample) → WAV + manifest JSON
+Pipeline:
+
+```text
+prompt
+  -> backend
+  -> postprocess
+  -> WAV export
+  -> manifest JSON
+```
 
 ## Development
 
 ```bash
 uv sync --all-extras
-uv run pytest                                    # run tests
-uv run pytest --cov=soundforge --cov-report=term-missing  # with coverage
+uv run pytest
+uv run pytest --cov=soundforge --cov-report=term-missing
 ```
+
+Primary docs for maintainers:
+- `docs/PROJECT_OVERVIEW.md`
+- `docs/ARCHITECTURE.md`
+- `docs/TODO.md`

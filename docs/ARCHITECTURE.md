@@ -1,55 +1,35 @@
 ---
 project: soundforge
 type: architecture
-status: planning
-last_updated: 2026-03-17
+status: current
+last_updated: 2026-03-29
 tags: soundforge, architecture, audio, cli, backends, gamedev
 ---
 
 # Architecture
 
-## Architectural Goal
-Build SoundForge as a reusable core library with a thin CLI wrapper, so the same core can later power:
-- a web app
-- an internal API
-- editor integrations
-- agentic workflows
+## Goal
 
-This should directly inherit the architectural lesson from `pixelforge`: keep the product logic in the core, not in the CLI.
+Keep SoundForge as a reusable core library with a thin CLI wrapper so the same logic can support:
+- terminal workflows
+- agent workflows
+- future APIs
+- future editor or web integrations
 
-## v0 System Shape
+## System Shape
 
 ```text
-User prompt
-   │
-   ▼
-soundforge CLI
-   │
-   ├── config resolution
-   ├── engine preset resolution
-   ├── output path planning
-   └── human/JSON formatting
-   │
-   ▼
-soundforge.core
-   │
-   ├── backend selection
-   ├── generation request building
-   ├── postprocess pipeline
-   ├── analysis / inspection
-   ├── export / packaging
-   └── preview
-   │
-   ▼
-Backend
-   ├── hosted API backend
-   └── optional local backend
-   │
-   ▼
-Audio outputs + manifest
+user prompt
+  -> CLI
+  -> config resolution
+  -> backend selection
+  -> generation
+  -> postprocess pipeline
+  -> WAV export
+  -> manifest output
 ```
 
-## Recommended Package Layout
+## Package Layout
 
 ```text
 soundforge/
@@ -67,211 +47,238 @@ soundforge/
 │       ├── config.py
 │       ├── export.py
 │       ├── generate.py
-│       ├── naming.py
 │       ├── pack.py
 │       ├── postprocess.py
 │       ├── preview.py
 │       ├── types.py
 │       └── backends/
 │           ├── __init__.py
-│           ├── api_sfx.py
-│           └── local_stable_audio.py
-└── .soundforge.toml.example
+│           ├── elevenlabs.py
+│           └── stable_audio.py
+└── tests/
 ```
 
-## Core Design Rules
+## Separation Of Concerns
 
-### 1. CLI is orchestration, not business logic
-The CLI should do:
-- argument parsing
-- config loading
-- output path decisions
-- status printing
-- JSON formatting
+### CLI
 
-The core should do:
-- prompt shaping
-- backend calls
-- waveform postprocessing
-- audio analysis
-- export packaging
+CLI responsibilities:
+- Click argument parsing
+- config loading and CLI overrides
+- human-readable output
+- JSON output
+- process exit behavior
 
-### 2. Backends share a stable interface
-The backend abstraction should support:
-- generate one clip
-- generate multiple variations
-- report availability
-- report capabilities
+Key file:
+- `soundforge/cli/commands.py`
 
-The interface should not leak provider-specific payload shapes into the rest of the system.
+### Core
 
-### 3. Postprocessing is a first-class subsystem
-For SoundForge, postprocessing is not optional polish. It is the core of the product.
+Core responsibilities:
+- backend selection
+- generation orchestration
+- postprocessing
+- analysis
+- export and pack assembly
 
-v0 postprocessing should support:
-- trimming leading and trailing silence
-- fade-in / fade-out
+Core modules are imported by the CLI and can also be used directly.
+
+## Request Flow
+
+### Single generation
+
+`generate` command flow:
+
+1. load config
+2. resolve engine preset and output defaults
+3. instantiate backend
+4. generate `(samples, sample_rate)`
+5. run postprocess pipeline
+6. write WAV
+7. write manifest
+8. return `GenerateResult`
+
+Primary implementation:
+- `soundforge/core/generate.py`
+
+### Batch generation
+
+`batch` command flow:
+
+1. load config
+2. resolve defaults
+3. instantiate backend once
+4. generate `N` variations
+5. postprocess each result
+6. export numbered WAV files
+7. write one manifest for the pack
+8. return `BatchResult`
+
+Primary implementation:
+- `soundforge/core/batch.py`
+
+## Core Modules
+
+### `config.py`
+
+Responsibilities:
+- find `.soundforge.toml`
+- fall back to global config
+- resolve engine presets
+- collect backend-specific settings
+- apply environment overrides
+
+### `types.py`
+
+Current shipped types:
+- `AudioAsset`
+- `GenerateResult`
+- `BatchResult`
+- `InspectResult`
+- `InfoResult`
+
+These are intentionally small and oriented around CLI and export workflows.
+
+### `generate.py`
+
+Single generation pipeline:
+- parameter resolution
+- seed support warning if backend cannot honor it
+- loop intent detection
+- postprocess manifest metadata assembly
+- export handoff
+
+### `batch.py`
+
+Batch workflow:
+- deterministic prefix selection
+- repeated backend generation
+- shared export manifest
+- numbered output file naming
+
+### `postprocess.py`
+
+Current pipeline stages:
+- silence trim
+- loop smoothing
+- fades
 - peak normalization
-- optional LUFS normalization if dependency cost is acceptable
-- mono/stereo conversion
-- sample-rate conversion
-- optional loop smoothing for ambience
-- optional tail trimming
+- channel conversion
+- resampling
 
-### 4. Export is structured, not ad hoc
-The output system should generate:
-- stable file names
-- export directories
-- manifest metadata
-- optional pack archives later
+This is a first-class subsystem, not a minor add-on. It is where a large share of the practical workflow value lives.
 
-### 5. JSON mode is a product requirement
-Every command that produces output should support machine-readable JSON. This is essential for:
-- agent workflows
-- CI automation
-- editor integration
-- future SaaS wrapping
+### `analysis.py`
 
-## Suggested Core Types
+Current analysis support:
+- duration
+- sample rate
+- channel count
+- peak dBFS
+- file read helpers
 
-```python
-from dataclasses import dataclass, field
-from pathlib import Path
+### `export.py`
 
+Responsibilities:
+- sanitize names
+- make deterministic filenames
+- write WAV files
+- validate written files
+- write manifests with relative paths
 
-@dataclass
-class AudioSpec:
-    sample_rate: int
-    channels: int
-    format: str
-    bit_depth: int | None = None
+### `pack.py`
 
+Responsibilities:
+- read existing WAV directories
+- build manifest from analyzed files
+- optionally create a zip archive
 
-@dataclass
-class GenerateRequest:
-    prompt: str
-    asset_type: str
-    duration_seconds: float | None = None
-    loop: bool = False
-    variations: int = 1
-    engine: str | None = None
-    tags: list[str] = field(default_factory=list)
+### `preview.py`
 
+Simple playback helpers around `sounddevice`.
 
-@dataclass
-class AudioAsset:
-    path: Path
-    duration_seconds: float
-    sample_rate: int
-    channels: int
-    peak_dbfs: float | None = None
-    loudness_lufs: float | None = None
-    loop_safe: bool | None = None
+## Backends
 
+All generation backends implement the shared `GenerationBackend` interface in `soundforge/core/backends/__init__.py`.
 
-@dataclass
-class GenerateResult:
-    assets: list[AudioAsset]
-    backend: str
-    prompt_used: str
-    manifest_path: Path | None = None
-```
+Required methods:
+- `generate(...) -> tuple[np.ndarray, int]`
+- `is_available()`
+- `info()`
+- `capabilities()`
 
-## Backend Strategy
+### `elevenlabs`
 
-### Recommended v0 Backend Order
-1. Hosted API backend first
-2. Local backend second
+Characteristics:
+- cloud API backend
+- requires API key
+- supports loop flag
+- does not support seed
+- returns decoded audio arrays for local processing
 
-Rationale:
-- Faster to ship
-- Less local hardware complexity
-- Better first-user experience
-- Lets the architecture mature before absorbing large local model costs
+### `stable-audio`
 
-### Hosted Backend Expectations
-The first hosted backend should support:
-- short SFX generation
-- variable count / variations
-- explicit duration when available
-- WAV export or easily convertible output
+Characteristics:
+- local GPU backend
+- Stable Audio Open 1.0 via diffusers
+- supports seed
+- requires CUDA and model access
+- lazy-loads the model on first generation
 
-### Local Backend Expectations
-The local backend is strategically valuable, but should be treated as a second-phase feature unless implementation cost is low.
+## Configuration Model
 
-Potential local candidate classes:
-- Stable Audio Open-based backend for experimentation
-- procedural fallback backend for retro and synthetic SFX later
+Config discovery order:
 
-## Preview Architecture
-v0 preview should be intentionally simple:
-- play a file
-- play a directory as a variation set
-- print metadata summary
-- optionally show a basic ASCII or textual waveform later
+1. explicit `--config`
+2. nearest `.soundforge.toml` walking upward
+3. `~/.config/soundforge/config.toml`
+4. built-in defaults
 
-This does not need to become a DAW.
-
-## Config Model
-SoundForge should use `.soundforge.toml`, discovered by walking up the directory tree in the current project.
-
-Config categories:
+Config domains:
 - defaults
-- output paths
-- engine presets
-- backend defaults
-- postprocessing defaults
-- naming rules
+- backend selection
+- backend-specific settings
+- postprocess defaults
+- engine preset overrides
 
-Example:
+## Output Model
 
-```toml
-[defaults]
-backend = "api"
-engine = "godot"
-type = "sfx"
-duration = 1.5
-variations = 4
-output_dir = "assets/audio"
+Current exported artifacts:
+- WAV files
+- manifest JSON
+- optional pack zip archives
 
-[postprocess]
-trim_silence = true
-normalize_peak_dbfs = -1.0
-fade_in_ms = 5
-fade_out_ms = 25
+Manifest content includes:
+- pack or asset name
+- asset type
+- engine
+- backend
+- prompt
+- generated timestamp
+- file metadata
+- postprocess settings
 
-[export]
-format = "wav"
-sample_rate = 44100
-channels = "mono"
-manifest = true
-```
+## Invariants
 
-## Engine Presets
+- human-readable output goes to stderr
+- JSON output goes to stdout
+- generated file names are deterministic from prompt, type, prefix, and seed
+- backends return arrays, not file paths
+- optional dependencies are imported lazily where practical
 
-### Godot
-- Prefer WAV or Ogg depending on use case
-- Useful defaults: WAV for SFX, Ogg for ambience/music
+## Known Constraints
 
-### Unity
-- Import flexibility is broad, so SoundForge should optimize for WAV-first exports and optional Ogg conversion
+- no OGG export yet
+- no LUFS analysis yet
+- no structured request object yet
+- no backend fallback orchestration yet
+- loop capability is not centrally preflight-validated across all backends
 
-### Unreal
-- Accepts a wide range of import formats, but WAV-first remains the safest universal export default
+## Extension Points
 
-## Why WAV-First
-WAV should be the canonical v0 output because it is:
-- simple
-- widely supported
-- fast to import
-- good for further engine-side compression
-- easy to analyze and transform without generational loss
-
-Optional Ogg export can be layered on top.
-
-## Non-Goals For The Architecture
-The initial design should avoid:
-- provider-specific business logic embedded in commands
-- custom binary project formats
-- complex plugin systems before core abstractions stabilize
-- over-optimizing for SaaS before the CLI workflow is proven
+The safest additions are:
+- new backends implementing `GenerationBackend`
+- richer analysis metadata
+- additional export formats
+- stronger loop validation
+- structured request types once API reuse becomes more important

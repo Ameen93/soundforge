@@ -1,185 +1,91 @@
 ---
 project: soundforge
 type: features
-status: planning
-last_updated: 2026-03-17
-tags: soundforge, features, v0, roadmap, audio, gamedev
+status: current
+last_updated: 2026-03-29
+tags: soundforge, features, v0, audio, gamedev
 ---
 
-# Features & Capabilities
+# Features
 
-## v0 Feature Set
+## Shipped In Current v0
 
-### 1. Single Asset Generation
-Command concept:
-```bash
-soundforge generate "metal sword hit with bright impact" -o assets/audio/sfx
-```
+### Single asset generation
 
-Capabilities:
-- Generate one sound effect from text
-- Set target duration when supported by the backend
-- Choose asset category
-- Export as WAV
-- Emit metadata and JSON output
+- text prompt to one exported WAV
+- optional duration
+- optional seed
+- engine-aware output defaults
+- manifest emission
 
-### 2. Variation Batch Generation
-Command concept:
-```bash
-soundforge batch "retro coin pickup" --count 8 --prefix sfx_coin
-```
+### Batch variation generation
 
-Capabilities:
-- Produce multiple variations from one prompt
-- Save files with deterministic numbering
-- Generate a manifest describing the set
-- Support lightweight pack creation for immediate engine import
+- one prompt to many numbered WAV files
+- deterministic file naming
+- one manifest for the pack
+- configurable prefix
 
-This should be treated as a primary feature, not a bonus feature. Games rarely need one perfect sound. They need sets.
+### Ambience and loop-intended workflows
 
-### 3. Ambient Loop Generation
-Command concept:
-```bash
-soundforge generate "cave ambience with dripping water" --type ambience --loop
-```
+- `ambience` and `loop` asset types
+- explicit `--loop` flag
+- loop smoothing in postprocess
+- loop intent recorded in exported metadata
 
-Capabilities:
-- Generate short ambience clips
-- Mark output as intended for looping
-- Run loop-safety heuristics or smoothing postprocessing
-- Export metadata indicating loop intent
+### Postprocess pipeline
 
-### 4. Cleanup / Postprocess Pipeline
-Command concept:
-```bash
-soundforge process assets/audio/raw/*.wav
-```
+- silence trimming
+- fade-in and fade-out
+- peak normalization
+- sample rate conversion
+- mono/stereo conversion
+- loop smoothing
 
-Capabilities:
-- Trim leading/trailing silence
-- Fade edges
-- Normalize output
-- Convert sample rate and channel count
-- Prepare assets for engine import
+### Engine presets
 
-### 5. Engine Presets
-Command concept:
-```bash
-soundforge generate "ui click, soft" --engine godot
-```
+- Godot preset
+- Unity preset
+- Unreal preset
+- per-engine output directory defaults
+- config-based preset overrides
 
-Capabilities:
-- Resolve format defaults
-- Resolve sample-rate defaults
-- Resolve output directories
-- Resolve naming conventions where configured
+### Inspect and preview
 
-### 6. Preview / Inspect
-Command concepts:
-```bash
-soundforge preview assets/audio/sfx_coin_01.wav
-soundforge inspect assets/audio/sfx_coin_01.wav --output-json
-```
+- inspect a single file
+- inspect a directory of WAV files
+- local playback through default audio device
 
-Capabilities:
-- Play or audition output locally
-- Print duration, sample rate, channels, peak information
-- Inspect a whole directory of variations
+### Pack export
 
-### 7. Pack Export
-Command concept:
-```bash
-soundforge pack assets/audio/coin_pickups/ --name coin_pickups
-```
+- build manifest from existing WAV directory
+- optional zip archive creation
 
-Capabilities:
-- Build manifest file
-- Group related files
-- Prepare game-ready asset bundles
-- Enable later zip export if desired
+### Setup and diagnostics
 
-### 8. Setup / Info
-Command concepts:
-```bash
-soundforge setup
-soundforge info --output-json
-```
+- backend readiness via `info`
+- guided backend setup via `setup`
+- JSON output for automation
 
-Capabilities:
-- Check configured backend readiness
-- Report installed capabilities
-- Confirm dependency availability
-- Confirm config discovery path
+## Deliberate Non-Goals For Current v0
 
-## v0 Asset Types
-Recommended initial types:
-- `sfx`
-- `ui`
-- `ambience`
-- `loop`
-
-Optionally define subtype tags rather than separate hardcoded classes:
-- `footstep`
-- `impact`
-- `weapon`
-- `magic`
-- `pickup`
-- `door`
-- `machine`
-- `environment`
-
-## v0 Non-Goals
-The following should be explicitly deferred:
-- full-length music tracks
-- adaptive music systems
-- voice acting and dialogue pipelines
-- beat syncing for music systems
-- stem separation or remix tools
+- full music generation
+- dialogue generation
 - timeline editing
-- scene-aware video-to-sound workflows
-- middleware-native project generation for FMOD/Wwise
+- FMOD or Wwise project authoring
+- collaborative review tooling
 
-## Future Features
+## Not Yet Implemented
 
-### Near-Term v1 Features
-- Better loop validation and automatic seam-repair
-- Ogg export and engine-specific presets
-- More detailed manifest schema
-- bulk regeneration and selective replacement
-- tagging and searchable local library
-- prompt templates per asset type
+- OGG export
+- LUFS measurement and normalization
+- tag-aware asset metadata
 - backend fallback rules
+- richer loop quality validation
 
-### v1.5 Features
-- procedural retro SFX backend for 8-bit / arcade sounds
-- richer audio analysis including LUFS, crest factor, transient score
-- preset libraries such as `platformer`, `sci-fi`, `fantasy`, `survival-horror`
-- prompt-to-pack workflows like `footstep pack on gravel`
+## Quality Bar
 
-### v2 Features
-- music-loop generation
-- layered stem output
-- FMOD/Wwise export helpers
-- editor plugins
-- web app / hosted API
-- shared team library and approval workflow
-- regeneration from reference audio
-
-### Experimental Future Features
-- scene-to-sound generation from video or gameplay capture
-- in-engine procedural runtime generation
-- reference-conditioned generation
-- adaptive music cue generation
-- event taxonomy generation from a game design document
-
-## Quality Bar For v0
-For v0, "good" means:
-- short sounds are immediately usable
-- batches contain enough variation to avoid repetition fatigue
-- output files are clean enough to ship in indie projects
-- the command line experience is stable and scriptable
-
-It does not mean:
-- the system replaces a senior sound designer
-- every output is studio-mastered
-- music generation is solved
+For current v0, success means:
+- short-form sounds are usable quickly
+- batches provide enough variation for game use
+- outputs are easy to script and integrate
+- the command surface is predictable and testable

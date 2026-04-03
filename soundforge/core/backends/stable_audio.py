@@ -145,6 +145,14 @@ class StableAudioBackend(GenerationBackend):
 
         return samples, SAMPLE_RATE
 
+    def cleanup(self) -> None:
+        """Unload the pipeline and free GPU memory."""
+        if self._pipe is not None:
+            del self._pipe
+            self._pipe = None
+        if self._torch is not None:
+            self._torch.cuda.empty_cache()
+
     def is_available(self) -> bool:
         """Check if torch, diffusers, and CUDA are available."""
         try:

@@ -115,6 +115,45 @@ class TestGenerate:
         result = runner.invoke(cli, ["generate", "test", "--output-json", "--backend", "elevenlabs"])
         assert result.exit_code == 1
 
+    @patch("soundforge.core.generate.get_backend")
+    def test_generate_loop_preflight_human_error(self, mock_get_backend, runner):
+        backend = MagicMock()
+        backend.capabilities.return_value = {
+            "max_duration": 30,
+            "supports_loop": False,
+            "supports_seed": False,
+        }
+        mock_get_backend.return_value = backend
+
+        result = runner.invoke(
+            cli,
+            ["generate", "test", "--backend", "stable-audio", "--loop"],
+        )
+
+        assert result.exit_code == 1
+        assert "does not support loop generation" in result.output
+        backend.generate.assert_not_called()
+
+    @patch("soundforge.core.generate.get_backend")
+    def test_generate_loop_preflight_json_error(self, mock_get_backend, runner):
+        backend = MagicMock()
+        backend.capabilities.return_value = {
+            "max_duration": 30,
+            "supports_loop": False,
+            "supports_seed": False,
+        }
+        mock_get_backend.return_value = backend
+
+        result = runner.invoke(
+            cli,
+            ["generate", "test", "--backend", "stable-audio", "--loop", "--output-json"],
+        )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert "does not support loop generation" in data["error"]
+        backend.generate.assert_not_called()
+
 
 class TestPack:
     def test_pack_creates_manifest(self, runner, test_wav_dir):

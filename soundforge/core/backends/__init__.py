@@ -45,6 +45,9 @@ class GenerationBackend(ABC):
             "supports_seed": False,
         }
 
+    def cleanup(self) -> None:
+        """Release backend resources (e.g. GPU memory). No-op by default."""
+
 
 def get_backend(name: str, config: SoundForgeConfig) -> GenerationBackend:
     """Factory function to get a backend by name."""

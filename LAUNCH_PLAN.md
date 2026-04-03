@@ -1,23 +1,23 @@
 # SoundForge Launch Plan
-> Portfolio + GitHub readiness checklist
 
-## Status: ✅ Complete
+Historical launch checklist for the initial public repo and portfolio release.
 
-### GitHub Setup
-- [x] Create public GitHub repo — https://github.com/Ameen93/soundforge
-- [x] Add MIT LICENSE file
-- [x] Clean up .gitignore (.soundforge.toml, uv.lock excluded)
-- [x] Add GitHub topics/tags (ai, audio, game-dev, sound-effects, python, cli, godot, unity, unreal, gamedev, sfx, elevenlabs)
-- [ ] Pin repo on GitHub profile (requires Ameen)
-- [x] Add GitHub Actions CI (pytest on Python 3.11/3.12/3.13)
+## State
 
-### Portfolio Site
-- [x] Add SoundForge entry to portfolio site
+This file is archival. Launch tasks were completed during the initial release cycle and are no longer the primary project tracker.
 
-### Housekeeping
-- [x] Update operator card (discord_channel, discord_channel_id)
-- [x] Create project-memory file
-- [x] Update TOOLS.md
+## Completed Launch Work
 
----
-*Completed 2026-03-19 by Nick Fury*
+- public GitHub repository created
+- MIT license added
+- CI configured
+- portfolio entry added
+- repo metadata and housekeeping completed
+
+## Current Source Of Truth
+
+Use these files instead:
+- `README.md` for user-facing behavior
+- `docs/ARCHITECTURE.md` for implementation structure
+- `docs/TODO.md` for remaining work
+- `docs/ROADMAP.md` for future direction
