@@ -29,6 +29,7 @@ class AudioAsset:
     sample_rate: int
     channels: int
     peak_dbfs: float
+    format: str = "wav"
     loop_safe: bool = False
 
     def to_dict(self) -> dict:
@@ -38,6 +39,7 @@ class AudioAsset:
             "sample_rate": self.sample_rate,
             "channels": self.channels,
             "peak_dbfs": round(self.peak_dbfs, 1),
+            "format": self.format,
             "loop_safe": self.loop_safe,
         }
 

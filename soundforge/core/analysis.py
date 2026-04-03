@@ -22,6 +22,7 @@ def analyze_array(
     samples: np.ndarray,
     sample_rate: int,
     path: Path,
+    audio_format: str = "wav",
     loop_safe: bool = False,
 ) -> AudioAsset:
     """Analyze a numpy audio array and return an AudioAsset."""
@@ -35,6 +36,7 @@ def analyze_array(
         sample_rate=sample_rate,
         channels=channels,
         peak_dbfs=peak,
+        format=audio_format,
         loop_safe=loop_safe,
     )
 

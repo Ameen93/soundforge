@@ -8,11 +8,13 @@ import pytest
 import soundfile as sf
 
 from soundforge.core.export import (
+    MANIFEST_VERSION,
     export_batch,
     export_single,
     make_batch_filename,
     make_single_filename,
     sanitize_name,
+    write_audio,
     write_manifest,
     write_wav,
 )
@@ -45,9 +47,16 @@ class TestFilenames:
         result = make_single_filename("coin pickup", "sfx", seed=42)
         assert result == "sfx_coin_pickup_42.wav"
 
+    def test_single_with_ogg_extension(self):
+        result = make_single_filename("coin pickup", "sfx", extension="ogg")
+        assert result == "sfx_coin_pickup.ogg"
+
     def test_batch_filename(self):
         assert make_batch_filename("sfx_coin", 1) == "sfx_coin_01.wav"
         assert make_batch_filename("sfx_coin", 12) == "sfx_coin_12.wav"
+
+    def test_batch_filename_ogg(self):
+        assert make_batch_filename("sfx_coin", 1, extension="ogg") == "sfx_coin_01.ogg"
 
 
 class TestWriteWav:
@@ -68,6 +77,17 @@ class TestWriteWav:
         path = tmp_path / "deep" / "nested" / "test.wav"
         write_wav(samples, 44100, path)
         assert path.exists()
+
+
+class TestWriteAudio:
+    def test_writes_valid_ogg(self, tmp_path):
+        samples = np.sin(np.linspace(0, 1, 44100))
+        path = tmp_path / "test.ogg"
+        write_audio(samples, 44100, path, audio_format="ogg")
+
+        assert path.exists()
+        info = sf.info(str(path))
+        assert info.format == "OGG"
 
 
 class TestWriteManifest:
@@ -95,6 +115,7 @@ class TestWriteManifest:
 
         assert manifest_path.exists()
         data = json.loads(manifest_path.read_text())
+        assert data["manifest_version"] == MANIFEST_VERSION
         assert data["name"] == "test"
         assert data["asset_type"] == "sfx"
         assert data["engine"] == "godot"
@@ -121,10 +142,29 @@ class TestExportSingle:
         assert asset.channels == 1
 
         manifest = json.loads(manifest_path.read_text())
+        assert manifest["manifest_version"] == MANIFEST_VERSION
         assert manifest["prompt"] == "coin pickup"
         assert len(manifest["files"]) == 1
         # Path should be relative in manifest
         assert not Path(manifest["files"][0]["path"]).is_absolute()
+
+    def test_creates_ogg_and_manifest(self, tmp_path):
+        samples = np.sin(np.linspace(0, 2 * np.pi * 440, 44100)).astype(np.float64)
+        asset, manifest_path = export_single(
+            samples=samples,
+            sample_rate=44100,
+            output_dir=tmp_path,
+            prompt="coin pickup",
+            asset_type="sfx",
+            engine="godot",
+            backend="elevenlabs",
+            audio_format="ogg",
+        )
+
+        assert asset.path.exists()
+        assert asset.path.suffix == ".ogg"
+        manifest = json.loads(manifest_path.read_text())
+        assert manifest["files"][0]["format"] == "ogg"
 
     def test_with_seed(self, tmp_path):
         samples = np.zeros(1000, dtype=np.float64)
@@ -164,7 +204,28 @@ class TestExportBatch:
         assert manifest_path.exists()
 
         manifest = json.loads(manifest_path.read_text())
+        assert manifest["manifest_version"] == MANIFEST_VERSION
         assert len(manifest["files"]) == 2
         # Paths should be relative
         for f in manifest["files"]:
             assert not Path(f["path"]).is_absolute()
+
+    def test_creates_ogg_batch(self, tmp_path):
+        results = [
+            (np.sin(np.linspace(0, 2 * np.pi * 440, 22050)).astype(np.float64), 44100),
+            (np.sin(np.linspace(0, 2 * np.pi * 880, 22050)).astype(np.float64), 44100),
+        ]
+        assets, manifest_path = export_batch(
+            results=results,
+            output_dir=tmp_path,
+            prefix="sfx_test",
+            prompt="test",
+            asset_type="sfx",
+            engine="godot",
+            backend="elevenlabs",
+            audio_format="ogg",
+        )
+
+        assert [asset.path.suffix for asset in assets] == [".ogg", ".ogg"]
+        manifest = json.loads(manifest_path.read_text())
+        assert all(file_info["format"] == "ogg" for file_info in manifest["files"])

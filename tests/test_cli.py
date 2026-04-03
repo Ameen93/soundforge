@@ -103,6 +103,12 @@ class TestProcess:
         assert result.exit_code == 0
         assert (out / test_wav.name).exists()
 
+    def test_process_ogg_output(self, runner, test_wav, tmp_path):
+        out = tmp_path / "output"
+        result = runner.invoke(cli, ["process", str(test_wav), "-o", str(out), "--format", "ogg"])
+        assert result.exit_code == 0
+        assert (out / "test.ogg").exists()
+
 
 class TestGenerate:
     def test_generate_no_api_key(self, runner, monkeypatch):
@@ -169,6 +175,17 @@ class TestPack:
         ])
         assert result.exit_code == 0
         assert (test_wav_dir / "zipped.zip").exists()
+
+    def test_pack_supports_ogg_files(self, runner, tmp_path):
+        ogg_path = tmp_path / "test.ogg"
+        samples = np.sin(np.linspace(0, 2 * np.pi * 440, 44100))
+        sf.write(str(ogg_path), samples, 44100, format="OGG", subtype="VORBIS")
+
+        result = runner.invoke(cli, [
+            "pack", str(tmp_path), "--name", "test_pack",
+        ])
+        assert result.exit_code == 0
+        assert (tmp_path / "test_pack_manifest.json").exists()
 
 
 class TestConfigPath:

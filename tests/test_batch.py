@@ -51,6 +51,22 @@ class TestBatchGenerate:
             assert r.asset.path.suffix == ".wav"
 
     @patch("soundforge.core.batch.get_backend")
+    def test_produces_ogg_files(self, mock_get_backend, tmp_path):
+        mock_get_backend.return_value = _fake_backend()
+
+        result = batch_generate(
+            "coin pickup",
+            count=3,
+            output_format="ogg",
+            output_dir=tmp_path,
+            config=SoundForgeConfig(elevenlabs_api_key="test"),
+        )
+
+        assert len(result.results) == 3
+        for r in result.results:
+            assert r.asset.path.suffix == ".ogg"
+
+    @patch("soundforge.core.batch.get_backend")
     def test_manifest_lists_all_files(self, mock_get_backend, tmp_path):
         mock_get_backend.return_value = _fake_backend()
 
@@ -62,6 +78,7 @@ class TestBatchGenerate:
         )
 
         manifest = json.loads(result.manifest_path.read_text())
+        assert manifest["manifest_version"] == "1"
         assert len(manifest["files"]) == 3
 
     @patch("soundforge.core.batch.get_backend")
@@ -109,6 +126,22 @@ class TestBatchGenerate:
 
         names = [r.asset.path.name for r in result.results]
         assert names == ["sfx_test_01.wav", "sfx_test_02.wav", "sfx_test_03.wav"]
+
+    @patch("soundforge.core.batch.get_backend")
+    def test_deterministic_naming_ogg(self, mock_get_backend, tmp_path):
+        mock_get_backend.return_value = _fake_backend()
+
+        result = batch_generate(
+            "test",
+            count=3,
+            prefix="sfx_test",
+            output_format="ogg",
+            output_dir=tmp_path,
+            config=SoundForgeConfig(elevenlabs_api_key="test"),
+        )
+
+        names = [r.asset.path.name for r in result.results]
+        assert names == ["sfx_test_01.ogg", "sfx_test_02.ogg", "sfx_test_03.ogg"]
 
     @patch("soundforge.core.batch.get_backend")
     def test_each_variation_postprocessed(self, mock_get_backend, tmp_path):

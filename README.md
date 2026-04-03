@@ -17,9 +17,10 @@ Current state:
 - v0 CLI is implemented and tested
 - 2 generation backends: `stable-audio` and `elevenlabs`
 - postprocessing pipeline: trim, fades, normalize, channel convert, resample, loop smoothing
+- export formats: `wav` and `ogg`
 - engine presets: Godot, Unity, Unreal
 - manifest and pack export
-- 181 tests passing
+- extensive automated test coverage
 
 ## Installation
 
@@ -114,6 +115,7 @@ Generate one audio asset from a text prompt.
 
 ```bash
 soundforge generate "coin pickup" --engine godot
+soundforge generate "forest ambience" --type ambience --format ogg
 soundforge generate "sword clash" --duration 2.5 -o assets/sfx
 soundforge generate "cave ambience" --type ambience --loop
 soundforge generate "magic chime" --seed 42
@@ -125,23 +127,25 @@ Generate multiple variations.
 
 ```bash
 soundforge batch "sword hit" --count 8 --prefix sfx_sword
+soundforge batch "wind loop" --type ambience --loop --format ogg
 soundforge batch "footstep" -n 4 --engine unity -o assets/audio
 soundforge batch "rain loop" --type ambience --loop
 ```
 
 ### `process`
 
-Postprocess existing WAV files. By default, writes to a `processed/` subdirectory instead of overwriting the source.
+Postprocess existing audio files. By default, writes to a `processed/` subdirectory instead of overwriting the source.
 
 ```bash
 soundforge process raw/*.wav --normalize -1
+soundforge process ambience.wav --format ogg -o processed/
 soundforge process audio.wav --sample-rate 44100 --channels 1
 soundforge process track.wav --loop-smooth -o processed/
 ```
 
 ### `inspect`
 
-Inspect one WAV file or all WAVs in a directory.
+Inspect one supported audio file or all supported audio files in a directory.
 
 ```bash
 soundforge inspect assets/audio/sfx_coin.wav
@@ -161,7 +165,7 @@ Requires the optional preview dependency.
 
 ### `pack`
 
-Build a manifest from a directory of WAV files and optionally zip the pack.
+Build a manifest from a directory of supported audio files and optionally zip the pack.
 
 ```bash
 soundforge pack assets/coins/ --name coin_pickups
@@ -201,6 +205,7 @@ engine = "godot"
 asset_type = "sfx"
 duration = 2.0
 variations = 4
+format = "wav"
 
 [backend]
 default = "stable-audio"
@@ -253,7 +258,7 @@ Pipeline:
 prompt
   -> backend
   -> postprocess
-  -> WAV export
+  -> WAV/OGG export
   -> manifest JSON
 ```
 

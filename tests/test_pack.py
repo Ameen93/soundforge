@@ -81,8 +81,22 @@ class TestBuildPack:
             assert manifest_path.name in names
 
     def test_empty_directory_raises(self, tmp_path):
-        with pytest.raises(ValueError, match="No WAV files"):
+        with pytest.raises(ValueError, match="No supported audio files"):
             build_pack(directory=tmp_path, name="empty")
+
+    def test_builds_manifest_from_ogg_files(self, tmp_path):
+        path = tmp_path / "test_00.ogg"
+        samples = np.sin(np.linspace(0, 2 * np.pi * 440, 22050))
+        sf.write(str(path), samples, 44100, format="OGG", subtype="VORBIS")
+
+        manifest_path, _ = build_pack(
+            directory=tmp_path,
+            name="ogg_pack",
+        )
+
+        manifest = json.loads(manifest_path.read_text())
+        assert len(manifest["files"]) == 1
+        assert manifest["files"][0]["format"] == "ogg"
 
     def test_engine_in_manifest(self, tmp_path):
         _create_test_wavs(tmp_path, count=1)

@@ -9,6 +9,8 @@ from soundforge.core.analysis import analyze_file
 from soundforge.core.export import write_manifest
 from soundforge.core.types import AudioAsset
 
+AUDIO_EXTENSIONS = ("*.wav", "*.ogg")
+
 
 def build_pack(
     directory: Path,
@@ -21,20 +23,25 @@ def build_pack(
 
     Returns (manifest_path, zip_path or None).
     """
-    wav_files = sorted(directory.glob("*.wav"))
-    if not wav_files:
-        raise ValueError(f"No WAV files found in {directory}")
+    audio_files = sorted(
+        file_path
+        for pattern in AUDIO_EXTENSIONS
+        for file_path in directory.glob(pattern)
+    )
+    if not audio_files:
+        raise ValueError(f"No supported audio files found in {directory}")
 
     assets: list[AudioAsset] = []
-    for wav_path in wav_files:
-        result = analyze_file(wav_path)
+    for audio_path in audio_files:
+        result = analyze_file(audio_path)
         assets.append(
             AudioAsset(
-                path=wav_path,
+                path=audio_path,
                 duration_seconds=result.duration_seconds,
                 sample_rate=result.sample_rate,
                 channels=result.channels,
                 peak_dbfs=result.peak_dbfs,
+                format=audio_path.suffix.lstrip(".").lower(),
             )
         )
 
@@ -53,8 +60,8 @@ def build_pack(
     if create_zip:
         zip_path = directory / f"{name}.zip"
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for wav_path in wav_files:
-                zf.write(wav_path, wav_path.name)
+            for audio_path in audio_files:
+                zf.write(audio_path, audio_path.name)
             zf.write(manifest_path, manifest_path.name)
 
     return manifest_path, zip_path

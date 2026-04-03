@@ -41,6 +41,19 @@ class TestGenerate:
         assert result.manifest_path.exists()
 
     @patch("soundforge.core.generate.get_backend")
+    def test_ogg_generation(self, mock_get_backend, tmp_path):
+        mock_get_backend.return_value = _fake_backend()
+
+        result = generate(
+            "coin pickup",
+            output_dir=tmp_path,
+            output_format="ogg",
+            config=SoundForgeConfig(elevenlabs_api_key="test"),
+        )
+
+        assert result.asset.path.suffix == ".ogg"
+
+    @patch("soundforge.core.generate.get_backend")
     def test_prompt_passed_to_backend(self, mock_get_backend, tmp_path):
         backend = _fake_backend()
         mock_get_backend.return_value = backend
@@ -111,6 +124,7 @@ class TestGenerate:
 
         import json
         manifest = json.loads(result.manifest_path.read_text())
+        assert manifest["manifest_version"] == "1"
         assert manifest["prompt"] == "test"
         assert len(manifest["files"]) == 1
 

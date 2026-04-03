@@ -41,6 +41,7 @@ class TestAudioAsset:
         assert d["path"] == "test.wav"
         assert d["duration_seconds"] == 0.512
         assert d["peak_dbfs"] == -1.2
+        assert d["format"] == "wav"
         assert d["loop_safe"] is False
 
 

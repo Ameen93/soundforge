@@ -76,6 +76,14 @@ class TestConfig:
         cfg = SoundForgeConfig(sample_rate=22050)
         assert cfg.resolve_sample_rate() == 22050
 
+    def test_resolve_format_from_engine(self):
+        cfg = SoundForgeConfig(engine="godot")
+        assert cfg.resolve_format() == "wav"
+
+    def test_resolve_format_explicit(self):
+        cfg = SoundForgeConfig(format="ogg")
+        assert cfg.resolve_format() == "ogg"
+
     def test_resolve_channels_from_engine(self):
         cfg = SoundForgeConfig(engine="godot")
         assert cfg.resolve_channels() == 1
@@ -92,6 +100,7 @@ class TestConfig:
 [defaults]
 engine = "unity"
 duration = 3.5
+format = "ogg"
 
 [backend]
 default = "elevenlabs"
@@ -104,6 +113,7 @@ target_peak_dbfs = -3.0
         cfg = SoundForgeConfig.load(config_file)
         assert cfg.engine == "unity"
         assert cfg.duration == 3.5
+        assert cfg.format == "ogg"
         assert cfg.elevenlabs_api_key == "test-key"
         assert cfg.trim_silence is False
         assert cfg.target_peak_dbfs == -3.0

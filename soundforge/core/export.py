@@ -1,4 +1,4 @@
-"""Export — WAV file writing, manifest JSON writing, file naming."""
+"""Export — audio file writing, manifest JSON writing, file naming."""
 
 from __future__ import annotations
 
@@ -10,8 +10,11 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from soundforge.core.analysis import analyze_array, analyze_file
+from soundforge.core.analysis import analyze_array
 from soundforge.core.types import AudioAsset
+
+MANIFEST_VERSION = "1"
+SUPPORTED_FORMATS = {"wav", "ogg"}
 
 
 def sanitize_name(text: str, max_length: int = 40) -> str:
@@ -32,18 +35,44 @@ def make_single_filename(
     prompt: str,
     asset_type: str = "sfx",
     seed: int | None = None,
+    extension: str = "wav",
 ) -> str:
     """Generate a filename for a single generation."""
     sanitized = sanitize_name(prompt)
     name = f"{asset_type}_{sanitized}"
     if seed is not None:
         name = f"{name}_{seed}"
-    return f"{name}.wav"
+    return f"{name}.{extension}"
 
 
-def make_batch_filename(prefix: str, index: int) -> str:
+def make_batch_filename(prefix: str, index: int, extension: str = "wav") -> str:
     """Generate a numbered filename for batch output."""
-    return f"{prefix}_{index:02d}.wav"
+    return f"{prefix}_{index:02d}.{extension}"
+
+
+def validate_format(audio_format: str) -> str:
+    """Normalize and validate an export format."""
+    normalized = audio_format.lower()
+    if normalized not in SUPPORTED_FORMATS:
+        available = ", ".join(sorted(SUPPORTED_FORMATS))
+        raise ValueError(f"Unsupported audio format '{audio_format}'. Available: {available}")
+    return normalized
+
+
+def write_audio(
+    samples: np.ndarray,
+    sample_rate: int,
+    path: Path,
+    audio_format: str = "wav",
+) -> Path:
+    """Write audio samples to a supported export format."""
+    audio_format = validate_format(audio_format)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if audio_format == "wav":
+        sf.write(str(path), samples, sample_rate, format="WAV", subtype="PCM_16")
+    elif audio_format == "ogg":
+        sf.write(str(path), samples, sample_rate, format="OGG", subtype="VORBIS")
+    return path
 
 
 def write_wav(
@@ -52,9 +81,7 @@ def write_wav(
     path: Path,
 ) -> Path:
     """Write audio samples to a WAV file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    sf.write(str(path), samples, sample_rate, subtype="PCM_16")
-    return path
+    return write_audio(samples, sample_rate, path, audio_format="wav")
 
 
 def write_manifest(
@@ -70,6 +97,7 @@ def write_manifest(
 ) -> Path:
     """Write a manifest JSON file."""
     manifest = {
+        "manifest_version": MANIFEST_VERSION,
         "name": name,
         "asset_type": asset_type,
         "engine": engine,
@@ -105,21 +133,29 @@ def export_single(
     engine: str | None,
     backend: str,
     seed: int | None = None,
+    audio_format: str = "wav",
     loop_safe: bool = False,
     postprocess_settings: dict | None = None,
 ) -> tuple[AudioAsset, Path]:
     """Export a single generated audio file with manifest. Returns (asset, manifest_path)."""
-    filename = make_single_filename(prompt, asset_type, seed)
-    wav_path = output_dir / filename
-    write_wav(samples, sample_rate, wav_path)
+    audio_format = validate_format(audio_format)
+    filename = make_single_filename(prompt, asset_type, seed, extension=audio_format)
+    output_path = output_dir / filename
+    write_audio(samples, sample_rate, output_path, audio_format=audio_format)
 
-    # Validate the written WAV is readable
+    # Validate the written file is readable
     try:
-        sf.info(str(wav_path))
+        sf.info(str(output_path))
     except Exception as e:
-        raise RuntimeError(f"Written WAV failed validation: {wav_path} — {e}")
+        raise RuntimeError(f"Written audio failed validation: {output_path} — {e}")
 
-    asset = analyze_array(samples, sample_rate, wav_path, loop_safe=loop_safe)
+    asset = analyze_array(
+        samples,
+        sample_rate,
+        output_path,
+        audio_format=audio_format,
+        loop_safe=loop_safe,
+    )
 
     manifest_name = sanitize_name(prompt)
     manifest_path = output_dir / f"{asset_type}_{manifest_name}_manifest.json"
@@ -145,24 +181,32 @@ def export_batch(
     asset_type: str,
     engine: str | None,
     backend: str,
+    audio_format: str = "wav",
     loop_safe: bool = False,
     postprocess_settings: dict | None = None,
 ) -> tuple[list[AudioAsset], Path]:
     """Export a batch of generated audio files with manifest. Returns (assets, manifest_path)."""
+    audio_format = validate_format(audio_format)
     assets: list[AudioAsset] = []
 
     for i, (samples, sample_rate) in enumerate(results, start=1):
-        filename = make_batch_filename(prefix, i)
-        wav_path = output_dir / filename
-        write_wav(samples, sample_rate, wav_path)
+        filename = make_batch_filename(prefix, i, extension=audio_format)
+        output_path = output_dir / filename
+        write_audio(samples, sample_rate, output_path, audio_format=audio_format)
 
-        # Validate the written WAV is readable
+        # Validate the written file is readable
         try:
-            sf.info(str(wav_path))
+            sf.info(str(output_path))
         except Exception as e:
-            raise RuntimeError(f"Written WAV failed validation: {wav_path} — {e}")
+            raise RuntimeError(f"Written audio failed validation: {output_path} — {e}")
 
-        asset = analyze_array(samples, sample_rate, wav_path, loop_safe=loop_safe)
+        asset = analyze_array(
+            samples,
+            sample_rate,
+            output_path,
+            audio_format=audio_format,
+            loop_safe=loop_safe,
+        )
         assets.append(asset)
 
     manifest_path = output_dir / f"{prefix}_manifest.json"

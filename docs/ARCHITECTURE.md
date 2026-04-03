@@ -25,7 +25,7 @@ user prompt
   -> backend selection
   -> generation
   -> postprocess pipeline
-  -> WAV export
+  -> WAV/OGG export
   -> manifest output
 ```
 
@@ -94,7 +94,7 @@ Core modules are imported by the CLI and can also be used directly.
 3. instantiate backend
 4. generate `(samples, sample_rate)`
 5. run postprocess pipeline
-6. write WAV
+6. write target format
 7. write manifest
 8. return `GenerateResult`
 
@@ -110,7 +110,7 @@ Primary implementation:
 3. instantiate backend once
 4. generate `N` variations
 5. postprocess each result
-6. export numbered WAV files
+6. export numbered audio files
 7. write one manifest for the pack
 8. return `BatchResult`
 
@@ -175,6 +175,7 @@ Current analysis support:
 - sample rate
 - channel count
 - peak dBFS
+- file format metadata
 - file read helpers
 
 ### `export.py`
@@ -182,14 +183,14 @@ Current analysis support:
 Responsibilities:
 - sanitize names
 - make deterministic filenames
-- write WAV files
+- write WAV or OGG files
 - validate written files
-- write manifests with relative paths
+- write versioned manifests with relative paths
 
 ### `pack.py`
 
 Responsibilities:
-- read existing WAV directories
+- read existing supported audio directories
 - build manifest from analyzed files
 - optionally create a zip archive
 
@@ -245,10 +246,12 @@ Config domains:
 
 Current exported artifacts:
 - WAV files
+- OGG files
 - manifest JSON
 - optional pack zip archives
 
 Manifest content includes:
+- manifest version
 - pack or asset name
 - asset type
 - engine
@@ -268,11 +271,9 @@ Manifest content includes:
 
 ## Known Constraints
 
-- no OGG export yet
 - no LUFS analysis yet
 - no structured request object yet
 - no backend fallback orchestration yet
-- loop capability is not centrally preflight-validated across all backends
 
 ## Extension Points
 

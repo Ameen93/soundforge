@@ -11,7 +11,6 @@ This is the current backlog after reconciling the docs with the shipped implemen
 
 ## High Priority
 
-- [ ] Add OGG export support while keeping WAV as the canonical processing format.
 - [ ] Decide whether `process` should optionally emit a manifest for processed files.
 
 ## Medium Priority
@@ -30,6 +29,8 @@ This is the current backlog after reconciling the docs with the shipped implemen
 
 ## Done Recently
 
+- [x] OGG export support while keeping WAV as the canonical processing format
+- [x] manifest versioning for exported manifests
 - [x] seed warning for unsupported backends
 - [x] duration clamp warnings in backend code
 - [x] WAV validation after export

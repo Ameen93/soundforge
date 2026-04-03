@@ -38,6 +38,18 @@ def global_options(f):
     return f
 
 
+def _iter_audio_files(path: Path) -> list[Path]:
+    """Return supported audio files for a file or directory input."""
+    if path.is_dir():
+        files = sorted(
+            file_path
+            for pattern in ("*.wav", "*.ogg")
+            for file_path in path.glob(pattern)
+        )
+        return files
+    return [path]
+
+
 # -- CLI group --
 
 
@@ -269,10 +281,11 @@ def _setup_elevenlabs():
 @click.option("--prompt-influence", type=float, default=None, help="Prompt adherence (0-1).")
 @click.option("--seed", type=int, default=None, help="Seed recorded in manifest and filename (backend support varies).")
 @click.option("--engine", "-e", default=None, type=click.Choice(["godot", "unity", "unreal"], case_sensitive=False), help="Engine preset.")
+@click.option("--format", "output_format", default=None, type=click.Choice(["wav", "ogg"], case_sensitive=False), help="Export format.")
 @click.option("--output", "-o", "output_dir", default=None, type=click.Path(), help="Output directory.")
 def generate(
     prompt, output_json_flag, quiet, backend, config_path,
-    asset_type, duration, loop, prompt_influence, seed, engine, output_dir,
+    asset_type, duration, loop, prompt_influence, seed, engine, output_format, output_dir,
 ):
     """Generate a single sound effect from a text prompt.
 
@@ -297,6 +310,7 @@ def generate(
             seed=seed,
             engine=engine or cfg.engine,
             output_dir=Path(output_dir) if output_dir else None,
+            output_format=output_format,
             config=cfg,
             on_status=on_status,
         )
@@ -326,10 +340,11 @@ def generate(
 @click.option("--loop", is_flag=True, help="Generate seamless loops.")
 @click.option("--prompt-influence", type=float, default=None, help="Prompt adherence (0-1).")
 @click.option("--engine", "-e", default=None, type=click.Choice(["godot", "unity", "unreal"], case_sensitive=False), help="Engine preset.")
+@click.option("--format", "output_format", default=None, type=click.Choice(["wav", "ogg"], case_sensitive=False), help="Export format.")
 @click.option("--output", "-o", "output_dir", default=None, type=click.Path(), help="Output directory.")
 def batch(
     prompt, output_json_flag, quiet, backend, config_path,
-    count, prefix, asset_type, duration, loop, prompt_influence, engine, output_dir,
+    count, prefix, asset_type, duration, loop, prompt_influence, engine, output_format, output_dir,
 ):
     """Generate multiple variations of a sound effect.
 
@@ -355,6 +370,7 @@ def batch(
             prompt_influence=prompt_influence if prompt_influence is not None else 0.3,
             engine=engine or cfg.engine,
             output_dir=Path(output_dir) if output_dir else None,
+            output_format=output_format,
             config=cfg,
             on_status=on_status,
         )
@@ -386,11 +402,12 @@ def batch(
 @click.option("--sample-rate", type=int, default=None, help="Target sample rate.")
 @click.option("--channels", type=int, default=None, help="Target channels (1=mono, 2=stereo).")
 @click.option("--loop-smooth", is_flag=True, help="Apply loop-safe crossfade smoothing.")
+@click.option("--format", "output_format", default=None, type=click.Choice(["wav", "ogg"], case_sensitive=False), help="Export format.")
 @click.option("--output", "-o", "output_dir", default=None, type=click.Path(), help="Output directory.")
 def process(
     paths, output_json_flag, quiet, backend, config_path,
     no_trim, fade_in, fade_out, normalize, no_normalize,
-    sample_rate, channels, loop_smooth, output_dir,
+    sample_rate, channels, loop_smooth, output_format, output_dir,
 ):
     """Postprocess existing audio files (trim, fade, normalize, resample).
 
@@ -404,19 +421,17 @@ def process(
     try:
         cfg = _load_config(config_path)
         on_status = make_status_callback(quiet)
+        resolved_format = (output_format or cfg.resolve_format()).lower()
 
         from soundforge.core.analysis import read_audio
-        from soundforge.core.export import write_wav
+        from soundforge.core.export import write_audio
         from soundforge.core.postprocess import run_pipeline
 
         results = []
 
         for path_str in paths:
             path = Path(path_str)
-            if path.is_dir():
-                wav_files = sorted(path.glob("*.wav"))
-            else:
-                wav_files = [path]
+            wav_files = _iter_audio_files(path)
 
             for wav_path in wav_files:
                 if on_status:
@@ -449,8 +464,8 @@ def process(
                     out_dir = wav_path.parent / "processed"
                     if on_status and out_dir != wav_path.parent:
                         on_status("No --output specified, writing to processed/")
-                out_path = out_dir / wav_path.name
-                write_wav(samples, sr, out_path)
+                out_path = out_dir / f"{wav_path.stem}.{resolved_format}"
+                write_audio(samples, sr, out_path, audio_format=resolved_format)
 
                 from soundforge.core.analysis import analyze_file
                 info = analyze_file(out_path)
@@ -518,9 +533,9 @@ def inspect(path, output_json_flag, quiet, backend, config_path):
         file_path = Path(path)
 
         if file_path.is_dir():
-            wav_files = sorted(file_path.glob("*.wav"))
+            wav_files = _iter_audio_files(file_path)
             if not wav_files:
-                raise click.ClickException(f"No WAV files found in {file_path}")
+                raise click.ClickException(f"No supported audio files found in {file_path}")
 
             results = [analyze_file(f) for f in wav_files]
 

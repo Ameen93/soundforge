@@ -12,15 +12,16 @@ tags: soundforge, features, v0, audio, gamedev
 
 ### Single asset generation
 
-- text prompt to one exported WAV
+- text prompt to one exported audio file
 - optional duration
 - optional seed
 - engine-aware output defaults
 - manifest emission
+- WAV and OGG export
 
 ### Batch variation generation
 
-- one prompt to many numbered WAV files
+- one prompt to many numbered audio files
 - deterministic file naming
 - one manifest for the pack
 - configurable prefix
@@ -52,12 +53,12 @@ tags: soundforge, features, v0, audio, gamedev
 ### Inspect and preview
 
 - inspect a single file
-- inspect a directory of WAV files
+- inspect a directory of WAV or OGG files
 - local playback through default audio device
 
 ### Pack export
 
-- build manifest from existing WAV directory
+- build manifest from existing WAV or OGG directory
 - optional zip archive creation
 
 ### Setup and diagnostics
@@ -76,7 +77,6 @@ tags: soundforge, features, v0, audio, gamedev
 
 ## Not Yet Implemented
 
-- OGG export
 - LUFS measurement and normalization
 - tag-aware asset metadata
 - backend fallback rules

@@ -24,6 +24,7 @@ def batch_generate(
     prompt_influence: float = 0.3,
     engine: str | None = None,
     output_dir: Path | None = None,
+    output_format: str | None = None,
     config: SoundForgeConfig | None = None,
     on_status: Callable[[str], None] | None = None,
 ) -> BatchResult:
@@ -38,6 +39,7 @@ def batch_generate(
     use_duration = duration if duration is not None else cfg.duration
     use_output = output_dir or cfg.resolve_output_dir()
     use_prefix = prefix or f"{use_asset_type}_{sanitize_name(prompt, max_length=20)}"
+    use_format = output_format or cfg.resolve_format()
     target_sr = cfg.resolve_sample_rate()
     target_ch = cfg.resolve_channels()
 
@@ -128,6 +130,7 @@ def batch_generate(
         asset_type=use_asset_type,
         engine=use_engine,
         backend=cfg.backend,
+        audio_format=use_format,
         loop_safe=is_loop,
         postprocess_settings=postprocess_settings,
     )

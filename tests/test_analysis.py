@@ -39,6 +39,12 @@ class TestAnalyzeArray:
         asset = analyze_array(stereo, sr, Path("test.wav"))
         assert asset.channels == 2
 
+    def test_custom_format(self):
+        sr = 44100
+        samples = np.sin(np.linspace(0, 2 * np.pi, sr))
+        asset = analyze_array(samples, sr, Path("test.ogg"), audio_format="ogg")
+        assert asset.format == "ogg"
+
 
 class TestAnalyzeFile:
     def test_reads_wav(self, tmp_path):

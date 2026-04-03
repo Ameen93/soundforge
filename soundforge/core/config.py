@@ -58,6 +58,7 @@ class SoundForgeConfig:
     duration: float = 2.0
     variations: int = 4
     output_dir: str | None = None
+    format: str | None = None
 
     # Postprocess
     trim_silence: bool = True
@@ -104,6 +105,8 @@ class SoundForgeConfig:
             cfg.variations = int(defaults["variations"])
         if "output_dir" in defaults:
             cfg.output_dir = defaults["output_dir"]
+        if "format" in defaults:
+            cfg.format = str(defaults["format"]).lower()
 
         # [backend]
         backend = data.get("backend", {})
@@ -191,3 +194,10 @@ class SoundForgeConfig:
             return self.channels
         preset = self.resolve_engine_preset()
         return preset.get("channels", 1)
+
+    def resolve_format(self) -> str:
+        """Resolve output format from config, engine preset, or default wav."""
+        if self.format:
+            return self.format.lower()
+        preset = self.resolve_engine_preset()
+        return str(preset.get("format", "wav")).lower()

@@ -23,6 +23,7 @@ def generate(
     seed: int | None = None,
     engine: str | None = None,
     output_dir: Path | None = None,
+    output_format: str | None = None,
     config: SoundForgeConfig | None = None,
     on_status: Callable[[str], None] | None = None,
 ) -> GenerateResult:
@@ -37,6 +38,7 @@ def generate(
     use_asset_type = asset_type or cfg.asset_type
     use_duration = duration if duration is not None else cfg.duration
     use_output = output_dir or cfg.resolve_output_dir()
+    use_format = output_format or cfg.resolve_format()
     target_sr = cfg.resolve_sample_rate()
     target_ch = cfg.resolve_channels()
 
@@ -118,6 +120,7 @@ def generate(
         engine=use_engine,
         backend=cfg.backend,
         seed=seed,
+        audio_format=use_format,
         loop_safe=is_loop,
         postprocess_settings=postprocess_settings,
     )

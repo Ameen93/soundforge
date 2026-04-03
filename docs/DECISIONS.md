@@ -61,10 +61,10 @@ Why:
 - avoids provider lock-in
 - keeps postprocessing and export backend-agnostic
 
-### Use WAV as the canonical export and processing format
+### Use WAV as the canonical processing format
 
 Decision:
-WAV remains the default working format even when source backends return encoded audio.
+WAV remains the default working format even when source backends return encoded audio. Export may emit WAV or OGG at the boundary.
 
 Why:
 - broad engine compatibility
@@ -105,7 +105,6 @@ Stable Audio Open 1.0 is implemented as the local GPU backend.
 
 ## Open Decisions
 
-- whether to add OGG export next or later
 - whether LUFS belongs in the next milestone
 - whether to introduce structured request types now or wait for API reuse pressure
 - whether retro procedural synthesis should become a backend in v1 or later
